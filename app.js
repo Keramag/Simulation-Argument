@@ -5,102 +5,36 @@
    f_P = fraction of civilizations that reach a posthuman stage
    f_I = fraction of those that run many ancestor simulations
    N   = average number of simulated histories per such civilization
-   We additionally scale by c, your credence that simulated minds can be conscious.
-   Each answer picks an illustrative value for one of these quantities. */
+   scaled by c, your credence that simulated minds can be conscious.
+   Each answer chooses an illustrative value (VALUES, in content.js). */
 
-const VALUES = {
-  c:  { agree: 0.95, disagree: 0.02 },
-  fP: { agree: 0.3, disagree: 1e-9 },
-  fI: { agree: 0.1, disagree: 1e-7 },
-  N:  { agree: 1e6,  disagree: 0.5 },
+const COMMIT = {
+  agree: {
+    c: "You accept the foundation: simulated minds could count as observers.",
+    fP: "You think some civilizations make it. That closes off option A.",
+    fI: "You think simulating is at least fairly common among those who can. That weakens option B.",
+    N: "Multiplication does the rest: simulated lives can dwarf biological ones.",
+    self: "This is the step that turns a statistic into a claim about you.",
+  },
+  disagree: {
+    c: "This steps outside the trilemma: Bostrom assumes it rather than proves it.",
+    fP: "This commits you to option A: civilizations almost never reach the posthuman stage.",
+    fI: "This commits you to option B: posthuman civilizations almost never run many simulations.",
+    N: "This leans on option B: simulations may exist, but not in numbers that matter.",
+    self: "You decline to apply the statistic to yourself. Be ready to say what evidence separates you from a simulated person who would say the same.",
+  },
 };
 
-const STEPS = [
-  {
-    key: "c", chip: "Consciousness", tag: "Premise 1 of 4",
-    q: "Could a sufficiently advanced civilization create conscious simulated beings?",
-    ctx: "Bostrom assumes “substrate independence”: what makes a mind conscious is the pattern of information processing, not the stuff it runs on. Neurons are not magic; silicon, or something stranger, could in principle do the same job.",
-    opts: {
-      agree: ["Yes, minds can run on other substrates", "Consciousness is about structure and function."],
-      disagree: ["No, simulation can't produce experience", "A simulated storm doesn't make anything wet; a simulated brain may not feel."],
-    },
-    reflect: {
-      agree: "You accept the foundation. Everything that follows is now about numbers and motives, not metaphysics.",
-      disagree: "Then simulated observers are, at best, philosophical zombies and the argument loses its bite. Note that Bostrom explicitly sets this challenge aside as an assumption, so you have rejected the argument at its first step.",
-    },
-  },
-  {
-    key: "fP", chip: "Survival", tag: "Premise 2 of 4",
-    q: "Could civilizations survive long enough to reach that technological stage?",
-    ctx: "Simulating a mind (let alone a world) would need staggering computing power, perhaps planet-sized computers. Do technological civilizations tend to get there, or do wars, engineered pandemics, AI accidents or other “great filters” usually stop them first?",
-    opts: {
-      agree: ["Yes, a meaningful fraction make it", "Even if most fail, some survive."],
-      disagree: ["Almost none ever get there", "Something reliably destroys or stalls civilizations first."],
-    },
-    reflect: {
-      agree: "Notice how little is demanded: only that some civilizations survive. In a very large universe, even tiny fractions are numerous.",
-      disagree: "This is option A of the trilemma. It is a grim bet: if you are right, humanity is probably headed for extinction before reaching maturity.",
-    },
-  },
-  {
-    key: "fI", chip: "Motivation", tag: "Premise 3 of 4",
-    q: "If they could, would they actually create enormous numbers of conscious simulations?",
-    ctx: "Posthuman civilizations might run “ancestor simulations” for research, history, entertainment, or reasons we can't imagine. But they might also find it unethical, boring, or pointless, and just not do it. It takes only a small fraction of such civilizations (or individuals) to produce huge numbers.",
-    opts: {
-      agree: ["Yes, a good number would", "Curiosity about origins and history is a strong motive."],
-      disagree: ["Almost none would", "Ethical constraints or lack of interest would nearly always prevail."],
-    },
-    reflect: {
-      agree: "You've accepted that simulating is at least fairly common among those who can.",
-      disagree: "This is option B of the trilemma. Note the strength required: not “most don't”, but “nearly all of them, always”, since a rare exception can run vast numbers.",
-    },
-  },
-  {
-    key: "N", chip: "Numbers", tag: "Premise 4 of 4",
-    q: "If some did, would simulated observers vastly outnumber biological ones?",
-    ctx: "A single computer of planetary scale could run an astronomical number of human-like minds. One biological civilization has one history. One simulating civilization could host millions of simulated ones, each full of people.",
-    opts: {
-      agree: ["Yes, simulations would be cheap and plentiful", "Millions of runs per civilization is plausible."],
-      disagree: ["No, simulations would stay rare", "Costs or limits would keep the numbers small."],
-    },
-    reflect: {
-      agree: "This is the engine of the argument. Multiplication by large numbers can swamp even tiny fractions from the earlier steps.",
-      disagree: "That is a way out of the argument via option B: simulations exist, but not in numbers that overwhelm the originals.",
-    },
-  },
-  {
-    key: "self", chip: "You", tag: "The Inference",
-    q: "Given all that, where should you expect yourself to be?",
-    ctx: "Suppose the share of simulated observers is what you just estimated. You have no direct evidence about which kind of observer you are. Bostrom's “indifference principle”: your credence that you are simulated should match the share of observers like you who are.",
-    dynamic: true,
-    opts: {
-      agree: ["Match the share", "With no distinguishing evidence, treat myself as a random observer."],
-      disagree: ["I have reasons to think I'm biological", "My own experience is evidence the numbers don't capture."],
-    },
-    reflect: {
-      agree: "That is the step that turns a statistic into a personal conclusion.",
-      disagree: "You're declining to apply the statistic to yourself. Just be ready to say what that special evidence is, since a simulated person could say the same words.",
-    },
-  },
-];
-
-/* ---------- State ---------- */
-const KEY = "simarg.v1";
-let state = { answers: {}, step: -1, custom: null };
+const KEY = "simarg.v2";
+let state = { answers: {}, objection: {}, step: -1, custom: null };
 try { Object.assign(state, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+let ui = { open: null, other: false };
 
-/* ---------- Computation ---------- */
-function paramsFrom(answers) {
-  const p = {};
-  for (const k of Object.keys(VALUES)) p[k] = VALUES[k][answers[k]];
-  return p;
-}
-function compute(p) {
-  const x = p.fP * p.fI * p.N;
-  const fsim = p.c * (x / (x + 1));
-  return { x, fsim };
-}
+const core = ["c", "fP", "fI", "N"];
+const complete = () => core.every(k => state.answers[k]);
+const paramsFrom = a => Object.fromEntries(core.map(k => [k, VALUES[k][a[k]]]));
+function compute(p) { const x = p.fP * p.fI * p.N; return { x, fsim: p.c * (x / (x + 1)) }; }
 function classify(p) {
   const { x } = compute(p);
   if (p.c < 0.1) return "noSim";
@@ -108,155 +42,205 @@ function classify(p) {
   if (x < 0.1) return p.fP < 1e-3 ? "A" : "B";
   return "mixed";
 }
-const core = ["c", "fP", "fI", "N"];
-const complete = () => core.every(k => state.answers[k]);
-
 function pct(f) {
   if (f >= 0.9999) return ">99.99%";
   if (f < 0.0001) return "<0.01%";
   const v = f * 100;
   return (v >= 10 ? v.toFixed(0) : v.toFixed(1)) + "%";
 }
-function ratio(x) {
-  if (x >= 1000) return "about " + Math.round(x).toLocaleString() + " to 1";
-  if (x >= 1) return "about " + x.toFixed(1) + " to 1";
-  if (x > 0.001) return "about 1 to " + Math.round(1 / x);
-  return "vanishingly few";
-}
 
-/* ---------- Rendering ---------- */
 const $ = id => document.getElementById(id);
 const stage = $("stage");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const answered = s => !!state.answers[s.key];
+const canContinue = s => answered(s) && (state.answers[s.key] === "agree" || !!state.objection[s.key]);
 
 function go(step) {
-  state.step = step; save(); render();
+  state.step = step; ui = { open: null, other: false }; save(); render();
   window.scrollTo({ top: 0 });
   stage.focus({ preventScroll: true });
 }
 
 function render() {
-  renderChips();
   renderGauge();
+  Background.set(state.step < 0 ? 0 : Math.min(1, (state.step + 1) / (STEPS.length + 1)));
   if (state.step < 0) return renderIntro();
   if (state.step >= STEPS.length) return renderResult();
   renderStep(STEPS[state.step]);
 }
 
-function renderChips() {
-  const el = $("chips");
-  el.innerHTML = STEPS.map((s, i) => {
+function progressHTML() {
+  const items = STEPS.map((s, i) => {
     const a = state.answers[s.key];
-    const reachable = i === 0 || state.answers[STEPS[i - 1].key] || a;
-    const cur = state.step === i ? " current" : "";
-    return `<button class="chip ${a || ""}${cur}" data-i="${i}" ${reachable ? "" : "disabled"}>${esc(s.chip)}</button>`;
-  }).join("") + (complete() ? `<button class="chip${state.step >= STEPS.length ? " current" : ""}" data-i="${STEPS.length}" ${state.answers.self ? "" : "disabled"}>Trilemma</button>` : "");
-  el.querySelectorAll(".chip:not([disabled])").forEach(b => b.onclick = () => go(+b.dataset.i));
+    const reach = i === 0 || canContinue(STEPS[i - 1]) || a;
+    return `<button class="pd ${a || ""}${state.step === i ? " current" : ""}" data-i="${i}" ${reach ? "" : "disabled"} title="${esc(s.name)}"><span class="dot"></span><span class="pl">${esc(s.name)}</span></button>`;
+  });
+  const last = `<button class="pd${state.step >= STEPS.length ? " current" : ""}" data-i="${STEPS.length}" ${canContinue(STEPS[STEPS.length - 1]) ? "" : "disabled"} title="Trilemma"><span class="dot"></span><span class="pl">Trilemma</span></button>`;
+  return `<nav class="progress" aria-label="Progress">${items.concat(last).join('<span class="bar"></span>')}</nav>`;
+}
+function wireProgress() {
+  stage.querySelectorAll(".pd:not([disabled])").forEach(b => b.onclick = () => go(+b.dataset.i));
 }
 
 function renderGauge() {
   const g = $("gauge");
   if (!complete()) {
     const n = core.filter(k => state.answers[k]).length;
-    g.innerHTML = `<div class="gauge-in">Your position so far: ${n} of 4 premises answered. The running estimate appears once you've weighed all four.</div>`;
+    g.innerHTML = `<div class="gauge-in">${n} of 4 premises weighed. Your running estimate appears once you've weighed all four.</div>`;
     return;
   }
-  const { fsim, x } = compute(paramsFrom(state.answers));
-  g.innerHTML = `<div class="gauge-in"><strong>Share of observers like us who are simulated, given your answers: ${pct(fsim)}</strong>
+  const { fsim } = compute(paramsFrom(state.answers));
+  g.innerHTML = `<div class="gauge-in"><strong>On your answers, ${pct(fsim)} of observers like us are simulated.</strong>
     <div class="meter" role="img" aria-label="${pct(fsim)} simulated"><i style="width:${Math.max(fsim * 100, 0.5)}%"></i></div></div>`;
 }
 
 function renderIntro() {
   stage.innerHTML = `<section class="step">
-    <div class="tag">An argument you complete yourself</div>
-    <h1>Are you living in a simulation?</h1>
-    <p>In 2003 the philosopher Nick Bostrom argued that at least one of three unlikely-sounding things must be true. He didn't claim we are simulated. He claimed you can't comfortably deny all three.</p>
-    <p>This site won't hand you the conclusion. You'll face the argument one premise at a time and say whether you <em>agree</em> or <em>disagree</em>. The numbers underneath update as you go, so you can see exactly which of your beliefs carry the weight.</p>
-    <p class="muted">Five questions. About five minutes. You can go back and change any answer.</p>
-    <div class="row"><button class="btn" id="begin">Begin</button>${state.answers.self ? '<button class="btn ghost" id="jump">Jump to my result</button>' : ""}</div>
-  </section>`;
+    <div class="visual">${Visuals.field(null)}</div>
+    <div class="card">
+      <div class="tag">// an argument you complete yourself</div>
+      <h1>Are you living in a simulation?</h1>
+      <p>In 2003 the philosopher Nick Bostrom argued that at least one of three unlikely-sounding things is true. He did not say we are simulated. He said you cannot comfortably deny all three.</p>
+      <p>I won't give you the conclusion. You'll decide, premise by premise, whether you accept each step, and watch the numbers underneath respond.</p>
+      <p class="muted">Five questions. You can disagree, ask for the strongest objection, or hear the best case for the other side at any point.</p>
+      <div class="row"><button class="btn" id="begin">Begin</button>${canContinue(STEPS[STEPS.length - 1]) ? '<button class="btn ghost" id="jump">Jump to my result</button>' : ""}</div>
+    </div></section>`;
   $("begin").onclick = () => go(0);
   if ($("jump")) $("jump").onclick = () => go(STEPS.length);
 }
 
-function renderStep(s) {
-  const chosen = state.answers[s.key];
-  const dyn = s.dynamic && complete()
-    ? `<p class="ctx"><strong>From your answers:</strong> there would be ${ratio(compute(paramsFrom(state.answers)).x)} simulated to biological observers (${pct(compute(paramsFrom(state.answers)).fsim)} of all observers simulated).</p>` : "";
+function renderStep(s, keepVisual) {
+  const ans = state.answers[s.key];
+  const done = complete();
+  const params = done ? paramsFrom(state.answers) : null;
+  const diagram = keepVisual || Visuals.diagram(s.key, state.answers, params, done);
   const last = s.key === "self";
+  const picked = state.objection[s.key];
+  const aids = [["why", "Why?", s.why], ["deep", "Go deeper", s.deeper], ["obj", "Objection", s.objection]];
+
+  let follow = "";
+  if (ans === "agree") {
+    follow = `<div class="reflect"><p>${esc(COMMIT.agree[s.key])}</p></div>`;
+  } else if (ans) {
+    const o = s.objections.find(o => o.id === picked);
+    follow = `<div class="reflect"><div class="tag">// why don't you accept this premise?</div>
+      <div class="objs">${s.objections.map(o => `<button class="obj${o.id === picked ? " sel" : ""}" data-o="${o.id}">${esc(o.label)}</button>`).join("")}</div>
+      ${o ? `<div class="arg"><p><strong>The strongest version:</strong> ${esc(o.arg)}</p>${o.reply ? `<p class="muted"><strong>A defender replies:</strong> ${esc(o.reply)}</p>` : ""}
+        <p class="commit">${ans === "unsure" ? "Recorded as a midpoint answer." : esc(COMMIT.disagree[s.key])}</p></div>` : ""}</div>`;
+  }
+  const other = ans ? (ans === "agree"
+    ? { t: "The strongest case against", b: s.objection }
+    : { t: "The strongest case for", b: s.forAgree }) : null;
+
   stage.innerHTML = `<section class="step">
-    <div class="tag">${esc(s.tag)}</div>
-    <h2>${esc(s.q)}</h2>
-    <p class="ctx">${esc(s.ctx)}</p>${dyn}
-    <div class="choices" role="group" aria-label="Your answer">
-      ${["agree", "disagree"].map(k => `<button class="choice ${k}${chosen === k ? " sel" : ""}" data-k="${k}" aria-pressed="${chosen === k}">
-        <span class="k">${esc(s.opts[k][0])}</span><small>${esc(s.opts[k][1])}</small></button>`).join("")}
-    </div>
-    ${chosen ? `<div class="reflect"><div class="tag">What this means</div><p>${esc(s.reflect[chosen])}</p></div>
-      <div class="row"><button class="btn" id="next">${last ? "See the trilemma" : "Continue"}</button></div>` : ""}
-  </section>`;
+    <div class="visual">${diagram}</div>
+    <div class="card">
+      <div class="tag">// ${esc(s.tag)}</div>
+      <h2>${esc(s.q)}</h2>
+      <p class="ctx">${esc(s.ctx)}</p>
+      <div class="aids">${aids.map(([k, l]) => `<button class="aid${ui.open === k ? " on" : ""}" data-a="${k}">${l}</button>`).join("")}</div>
+      ${ui.open ? `<div class="aidp">${esc(aids.find(a => a[0] === ui.open)[2])}</div>` : ""}
+      <div class="choices" role="group" aria-label="Your answer">
+        <button class="choice agree${ans === "agree" ? " sel" : ""}" data-k="agree" aria-pressed="${ans === "agree"}">I agree</button>
+        <button class="choice disagree${ans && ans !== "agree" ? " sel" : ""}" data-k="disagree" aria-pressed="${!!ans && ans !== "agree"}">I disagree</button>
+      </div>
+      ${follow}
+      ${other ? `<button class="link other" id="other">Show me the strongest argument for the other side</button>
+        ${ui.other ? `<div class="aidp"><strong>${other.t}:</strong> ${esc(other.b)}</div>` : ""}` : ""}
+      ${canContinue(s) ? `<div class="row"><button class="btn" id="next">${last ? "See the trilemma" : "Continue"}</button></div>` : ""}
+      ${progressHTML()}
+    </div></section>`;
+
+  const keep = () => renderStep(s, stage.querySelector(".visual").innerHTML);   // toggles don't replay the diagram
+  stage.querySelectorAll(".aid").forEach(b => b.onclick = () => { ui.open = ui.open === b.dataset.a ? null : b.dataset.a; keep(); });
   stage.querySelectorAll(".choice").forEach(b => b.onclick = () => {
-    state.answers[s.key] = b.dataset.k; state.custom = null; save(); render();
+    if (b.dataset.k === "agree") { state.answers[s.key] = "agree"; delete state.objection[s.key]; }
+    else if (!ans || ans === "agree") { state.answers[s.key] = "disagree"; delete state.objection[s.key]; }
+    state.custom = null; ui.other = false; save(); render();
   });
-  if (chosen) $("next").onclick = () => go(state.step + 1);
+  stage.querySelectorAll(".obj").forEach(b => b.onclick = () => {
+    state.objection[s.key] = b.dataset.o;
+    state.answers[s.key] = b.dataset.o === "unsure" ? "unsure" : "disagree";
+    state.custom = null; save(); render();
+  });
+  if ($("other")) $("other").onclick = () => { ui.other = !ui.other; keep(); };
+  if ($("next")) $("next").onclick = () => go(state.step + 1);
+  wireProgress();
 }
+
+const STATUS = {
+  c: "Open: depends on which theory of consciousness is right.",
+  fP: "Open: we can't yet tell whether the Great Filter is behind us or ahead.",
+  fI: "Open: we cannot observe posthuman motives or ethics.",
+  N: "Plausible on compute estimates, but real simulation costs are unknown.",
+  self: "Contested: anthropic reasoning has well-known paradoxes.",
+};
 
 function renderResult() {
   const p = state.custom || paramsFrom(state.answers);
   const { fsim, x } = compute(p);
   const cls = classify(p);
-  const cred = state.answers.self;
-  let yours;
-  if (cred === "agree") yours = `Applying the indifference principle, your credence that you are simulated comes out at <strong>${pct(fsim)}</strong>.`;
-  else yours = `You exempt yourself from the statistic, so your credence rests on whatever evidence you think distinguishes you, not on the <strong>${pct(fsim)}</strong> share.`;
-
+  const self = state.answers.self;
+  const yours = self === "agree"
+    ? `Applying the indifference principle, your credence that you are simulated comes out at <strong>${pct(fsim)}</strong>.`
+    : self === "unsure" ? `You're unsure the principle applies, so your credence lies somewhere between your prior and <strong>${pct(fsim)}</strong>.`
+    : `You exempt yourself from the statistic, so your credence rests on whatever evidence you think distinguishes you, not on the <strong>${pct(fsim)}</strong> share.`;
   const verdicts = {
-    noSim: "Your answer to Premise 1 sidesteps the trilemma altogether: if simulated beings can't be conscious, there are no simulated observers to count. This is the one assumption Bostrom doesn't defend.",
-    A: "Your answers commit you to <strong>A</strong>: civilizations almost never reach the posthuman stage. Defending that means believing humanity probably won't last.",
-    B: "Your answers commit you to <strong>B</strong>: posthuman civilizations almost never run enormous numbers of ancestor simulations. Defending that means believing nearly every advanced mind refrains, forever.",
-    C: "Your answers commit you to <strong>C</strong>: simulated observers vastly outnumber biological ones. And if you accept the indifference step, you should take seriously that you are one of them.",
-    mixed: "Your answers spread across the options. No single branch of the trilemma clearly wins, so you're hedging between them, which is a legitimate place to be.",
+    noSim: "Your answer on consciousness sidesteps the trilemma: if simulated beings can't be conscious, there are no simulated observers to count. Bostrom assumes this rather than defends it.",
+    A: "Your answers commit you to <strong>A</strong>: civilizations almost never reach the posthuman stage. Defending that means expecting that humanity probably won't last.",
+    B: "Your answers commit you to <strong>B</strong>: posthuman civilizations almost never run enormous numbers of ancestor simulations. Defending that means expecting nearly every advanced mind to refrain, always.",
+    C: "Your answers commit you to <strong>C</strong>: simulated observers vastly outnumber biological ones. If you accept the indifference step, you should take seriously that you are one of them.",
+    mixed: "Your answers spread across the options. No branch clearly wins, so you're hedging between them, which is a legitimate place to stand.",
   };
-
-  // sensitivity: flip each premise holding others fixed
   const rows = core.map(k => {
-    const cells = ["agree", "disagree"].map(opt => {
-      const pp = { ...paramsFrom(state.answers) };
-      pp[k] = VALUES[k][opt];
+    const cells = ["agree", "unsure", "disagree"].map(opt => {
+      const pp = { ...paramsFrom(state.answers) }; pp[k] = VALUES[k][opt];
       return `<td class="${state.answers[k] === opt && !state.custom ? "now" : ""}">${pct(compute(pp).fsim)}</td>`;
     }).join("");
-    return `<tr><th scope="row">${esc(STEPS.find(s => s.key === k).chip)}</th>${cells}</tr>`;
+    return `<tr><th scope="row">${esc(STEPS.find(s => s.key === k).name)}</th>${cells}</tr>`;
   }).join("");
-
-  const sl = (id, label, min, max, val, step) =>
-    `<label for="${id}">${label}: <span id="${id}-v"></span></label><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">`;
+  const accepted = STEPS.filter(s => state.answers[s.key] === "agree"), doubted = STEPS.filter(s => state.answers[s.key] !== "agree");
+  const sl = (id, label, min, max, val, step) => `<label for="${id}">${label}: <span id="${id}-v"></span></label><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">`;
+  const youKind = x * p.c > 1 ? "sim" : "bio";
 
   stage.innerHTML = `<section class="step">
-    <div class="tag">The Trilemma</div>
-    <h2>At least one of these is true</h2>
-    <div class="trilemma">
-      <div class="card A${cls === "A" ? " on" : ""}"><h3>A. The doom option</h3>Civilizations almost never reach the posthuman stage.</div>
-      <div class="card B${cls === "B" ? " on" : ""}"><h3>B. The abstention option</h3>Posthuman civilizations almost never run enormous numbers of ancestor simulations.</div>
-      <div class="card C${cls === "C" ? " on" : ""}"><h3>C. The simulation option</h3>Simulated observers vastly outnumber biological observers.</div>
-    </div>
-    <p>${verdicts[cls]}</p>
-    <div class="reflect"><div class="big">${pct(fsim)}</div>of observers simulated. ${yours}</div>
+    <div class="visual" id="rf">${Visuals.field(p, { you: youKind })}</div>
+    <div class="card">
+      <div class="tag">// the trilemma</div>
+      <h2>At least one of these is true</h2>
+      <div class="trilemma">
+        <div class="tcard A${cls === "A" ? " on" : ""}"><h3>A. The doom option</h3>Civilizations almost never reach the posthuman stage.</div>
+        <div class="tcard B${cls === "B" ? " on" : ""}"><h3>B. The abstention option</h3>Posthuman civilizations almost never run enormous numbers of ancestor simulations.</div>
+        <div class="tcard C${cls === "C" ? " on" : ""}"><h3>C. The simulation option</h3>Simulated observers vastly outnumber biological observers.</div>
+      </div>
+      <p id="verdict">${verdicts[cls]}</p>
+      <div class="reflect"><div class="big" id="big">${pct(fsim)}</div>of observers are simulated. ${yours}</div>
 
-    <h3>What would change it?</h3>
-    <p class="muted">Share of simulated observers if you changed one answer and kept the others. Your actual answer is highlighted.</p>
-    <table><thead><tr><th></th><th>If you agreed</th><th>If you disagreed</th></tr></thead><tbody>${rows}</tbody></table>
+      <h3>Two different questions</h3>
+      <div class="two">
+        <div class="pane"><div class="tag">// what follows logically</div>
+          <p>${accepted.length ? `Taking as given: ${accepted.map(s => esc(s.name.toLowerCase())).join(", ")}.` : "You accepted none of the premises outright."} The calculation above is only as good as those assumptions. <em>If</em> they hold, the conclusion follows.</p></div>
+        <div class="pane"><div class="tag">// whether it's actually true</div>
+          ${doubted.length ? `<p>Where you doubted: ${doubted.map(s => `<strong>${esc(s.name)}</strong>`).join(", ")}.</p>` : ""}
+          <ul>${STEPS.map(s => `<li><strong>${esc(s.name)}:</strong> ${esc(STATUS[s.key])}</li>`).join("")}</ul>
+          <p>Nothing here shows that we live in a simulation. It shows what you must believe if you reject the claim.</p></div>
+      </div>
 
-    <h3>Try your own numbers</h3>
-    <div class="sliders">
-      ${sl("s-c", "Chance simulated minds can be conscious (%)", 0, 100, Math.round(p.c * 100), 1)}
-      ${sl("s-fP", "Civilizations reaching posthuman stage (log₁₀)", -9, 0, Math.log10(p.fP).toFixed(1), 0.1)}
-      ${sl("s-fI", "…of which run many simulations (log₁₀)", -9, 0, Math.log10(p.fI).toFixed(1), 0.1)}
-      ${sl("s-N", "Simulated histories per such civilization (log₁₀)", -1, 9, Math.log10(p.N).toFixed(1), 0.1)}
-    </div>
+      <h3>What would change it?</h3>
+      <p class="muted">Share of simulated observers if you changed one answer and kept the rest.</p>
+      <table><thead><tr><th></th><th>Agree</th><th>Not sure</th><th>Disagree</th></tr></thead><tbody>${rows}</tbody></table>
 
-    <p class="muted" style="margin-top:28px">Notice the pattern: the argument doesn't need you to believe in simulations. It needs you to find a way to reject <em>all three</em> branches. Weigh how comfortable you are denying each. Critics also challenge the hidden steps: whether consciousness is substrate independent, whether indifference reasoning is valid, and whether simulations are computationally feasible.</p>
-    <div class="row"><button class="btn ghost" id="back">Revisit my answers</button><button class="btn ghost" id="again">Start over</button></div>
-  </section>`;
+      <h3>Try your own numbers</h3>
+      <div class="sliders">
+        ${sl("s-c", "Chance simulated minds can be conscious (%)", 0, 100, Math.round(p.c * 100), 1)}
+        ${sl("s-fP", "Civilizations reaching the posthuman stage (log₁₀)", -9, 0, Math.log10(p.fP).toFixed(1), 0.1)}
+        ${sl("s-fI", "…of which run many simulations (log₁₀)", -9, 0, Math.log10(p.fI).toFixed(1), 0.1)}
+        ${sl("s-N", "Simulated histories per such civilization (log₁₀)", -1, 9, Math.log10(p.N).toFixed(1), 0.1)}
+      </div>
+      <p class="muted" style="margin-top:24px">The argument doesn't need you to believe in simulations. It needs you to find a way to reject <em>all three</em> branches. Critics also challenge the hidden steps: substrate independence, indifference reasoning, and whether the simulations are feasible.</p>
+      <div class="row"><button class="btn ghost" id="back">Revisit my answers</button><button class="btn ghost" id="again">Start over</button></div>
+      ${progressHTML()}
+    </div></section>`;
 
   const wire = () => {
     const read = id => +$(id).value;
@@ -269,24 +253,25 @@ function renderResult() {
   };
   wire();
   ["s-c", "s-fP", "s-fI", "s-N"].forEach(id => $(id).oninput = () => {
-    const q = wire();
-    state.custom = q;
-    const r = compute(q);
-    document.querySelector(".big").textContent = pct(r.fsim);
-    document.querySelectorAll(".card").forEach(c => c.classList.toggle("on", c.classList.contains(classify(q))));
-    $("gauge").querySelector("strong").textContent = "Share of observers like us who are simulated, with your adjusted numbers: " + pct(r.fsim);
+    const q = wire(); state.custom = q;
+    const r = compute(q), c = classify(q);
+    $("big").textContent = pct(r.fsim);
+    $("verdict").innerHTML = verdicts[c];
+    $("rf").innerHTML = Visuals.field(q, { you: r.x * q.c > 1 ? "sim" : "bio" });
+    stage.querySelectorAll(".tcard").forEach(t => t.classList.toggle("on", t.classList.contains(c)));
+    $("gauge").querySelector("strong").textContent = `On your adjusted numbers, ${pct(r.fsim)} of observers are simulated.`;
     $("gauge").querySelector("i").style.width = Math.max(r.fsim * 100, 0.5) + "%";
   });
   $("back").onclick = () => { state.custom = null; go(0); };
   $("again").onclick = reset;
+  wireProgress();
 }
 
 function reset() {
-  state = { answers: {}, step: -1, custom: null }; save(); render();
-  window.scrollTo({ top: 0 });
+  state = { answers: {}, objection: {}, step: -1, custom: null }; ui = { open: null, other: false };
+  save(); render(); window.scrollTo({ top: 0 });
 }
 $("reset").onclick = reset;
 
-/* Only keep a resumed position if it's still valid. */
-if (state.step >= STEPS.length && !(complete() && state.answers.self)) state.step = -1;
+if (state.step >= STEPS.length && !canContinue(STEPS[STEPS.length - 1])) state.step = -1;
 render();
