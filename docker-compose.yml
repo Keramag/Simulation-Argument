@@ -1,0 +1,18 @@
+services:
+  simulation-argument:
+    build: .
+    container_name: simulation-argument
+    restart: unless-stopped
+    networks:
+      - traefik_proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik_proxy"
+      - "traefik.http.routers.simulation-argument.rule=Host(`${SIM_HOST:-simulation.mullbot.wandergeek.org}`)"
+      - "traefik.http.routers.simulation-argument.entrypoints=websecure"
+      - "traefik.http.routers.simulation-argument.tls.certresolver=letsencrypt"
+      - "traefik.http.services.simulation-argument.loadbalancer.server.port=8080"
+
+networks:
+  traefik_proxy:
+    external: true
