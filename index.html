@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reason Through the Simulation Argument</title>
+<meta name="description" content="An interactive walk through Nick Bostrom's simulation argument. Answer each premise yourself and watch how your answers shape the conclusion.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">The Simulation Argument</div>
+  <nav id="chips" aria-label="Progress through the argument"></nav>
+</header>
+
+<main id="stage" tabindex="-1" aria-live="polite"></main>
+
+<aside id="gauge" class="gauge" aria-label="Running estimate"></aside>
+
+<footer>
+  Based on Nick Bostrom, <em>“Are You Living in a Computer Simulation?”</em> (Philosophical Quarterly, 2003).
+  The numbers here are illustrative stand-ins for your answers, not predictions.
+  <button id="reset" class="link">Start over</button>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
